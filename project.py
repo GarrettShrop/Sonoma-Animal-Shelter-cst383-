@@ -8,66 +8,78 @@ Created on Tue Nov  1 20:16:13 2022
 
 import numpy as np
 import pandas as pd
-from scipy import stats
 import matplotlib.pyplot as plt
-from matplotlib import patches, rcParams
-from mpl_toolkits import mplot3d
-from mpl_toolkits.mplot3d import Axes3D
 import seaborn as sns
 
-df = pd.read_csv("https://raw.githubusercontent.com/GarrettShrop/Sonoma-Animal-Shelter-cst383-/main/Animal_Shelter_Intake_and_Outcome.csv")
+df = pd.read_csv('https://raw.githubusercontent.com/grbruns/cst383/master/sonoma-shelter-12-2022.csv')
+
+
+df =  df.drop(columns=['Count','Location','Outcome Zip Code','Kennel Number'])
 
 df.info()
 
-#df['Type'].value_counts().plot.bar();
+rto = ['RETURN TO OWNER','RTOS']
+dead = ['EUTHANIZE', 'DISPOSAL','DIED']
+df['Outcome Type'].replace(dead,'DEAD', inplace=True)
+df['Outcome Type'].replace(rto,'RTO', inplace=True)
+
+
+df = df[df['Outcome Type'] != 'ESCAPED/STOLEN']
+df = df[df['Outcome Type'] != 'APPT']
+df = df[df['Intake Type'] != 'OS APPT']
+df = df[df['Outcome Type'].notna()]
+df = df[df['Outcome Subtype'].notna()]
+df = df[df['Outcome Condition'].notna()]
+parts = ['Date Of Birth','Outcome Jurisdiction','Size']
+df[parts].fillna('UNKNOWN', inplace=True)
+
+df['Name'].fillna('Nameless', inplace=True)
+
+df['Date Of Birth'] = pd.to_datetime(df['Date Of Birth'])
+df['Intake Date'] = pd.to_datetime(df['Intake Date'])
+df['Outcome Date'] = pd.to_datetime(df['Outcome Date'])
 
 df.isna().sum()
 
-(df['Breed'].str.contains('/')).mean()
+df.info()
+
+df['Type'].value_counts().plot.bar(rot=0);
+plt.title('Types of Animals in the Shelter')
+plt.xlabel('Type of Animals')
+plt.ylabel('Total');
+
+def named(name):
+  if name == "Nameless":
+    return "Nameless"
+  else:
+    return "Named"
+df['name_status'] = df['Name'].apply(named)
+
+df.groupby('name_status')['Intake Type'].value_counts().unstack(0).plot.barh()
+plt.title('Intake Type by Named/Nameless')
+plt.xlabel('Number by Name/Nameless')
+plt.ylabel('Intake Type');
+
+sns.countplot(data=df, x='Outcome Type', hue='Type');
+plt.title('The Types of Animals\' Outcome Type')
+plt.xlabel('')
+plt.ylabel('Number of Animals');
 
 df_dog = df[df['Type'].str.contains('DOG')]
 (df_dog['Breed'].str.contains('/')).mean()
 
-df_cat = df[df['Type'].str.contains('CAT')]
-(df_cat['Breed'].str.contains('/')).mean()
-df_cat['Outcome Type'].value_counts()
-df_dog['Outcome Type'].value_counts()
-
-df_dog_cat = df[df['Type'].str.contains('DOG|CAT')]
-#df_dog_cat['Type'].value_counts().plot.bar();
-
-rto = ['RETURN TO OWNER','RTOS']
-
-((df_dog_cat['Type'] == 'CAT') & (df_dog_cat['Outcome Type'] == 'ADOPTION')).mean()
-((df_dog_cat['Type'] == 'DOG') & (df_dog_cat['Outcome Type'] == 'ADOPTION')).mean()
-df_dog_cat['Outcome Type'].replace(rto,'RTO', inplace=True)
-
-dead = ['EUTHANIZE', 'DISPOSAL','DIED']
-df_dog_cat['Outcome Type'].replace(dead,'DEAD', inplace=True)
-df_dog_cat = df_dog_cat[df['Outcome Type'] != 'ESCAPED/STOLEN']
-df_dog_cat['Outcome Type'].value_counts()
-sns.countplot(data=df_dog_cat, x='Outcome Type', hue='Type');
-
-# 2) if a animal has a name what is the different intake type?
-df_name = df.copy()
-df['Name'].isna().mean()
-((df['Intake Type'] == 'STRAY') & (df['Name'].notna())).mean()
-df_name = df_name.drop(columns=['Count','Location'])
-df_name['Name'].fillna('Nameless', inplace=True)
-
-def named(name):
-  if pd.isna(name):
-    return "Nameless"
+def mix(breed):
+  if "/" in breed:
+    return "Mixed"
   else:
-    return "Named"
+    return "Pure"
 
-df_name['name_status'] = df['Name'].apply(named)
-df_name.groupby('name_status')['Intake Type'].value_counts().unstack(0).plot.barh()
-df_name['Intake Type'].value_counts()
+df_dog['Mixed'] = df_dog['Breed'].apply(mix)
 
-
-
-
+sns.countplot(data=df_dog, x='Outcome Type', hue='Mixed');
+plt.title('Outcome Type based on Dog Mix/Pure')
+plt.xlabel('')
+plt.ylabel('Total Number of Dogs');
 
 
 
